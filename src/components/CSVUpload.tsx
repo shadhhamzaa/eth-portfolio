@@ -1,6 +1,6 @@
 /* User MODS
-MOD001    Component to Browse, Pick and Save the file in memory and then read the file
-MOD002    Bringing in portfolio rows to integrate with supabase
+MOD001 - FILE UPLOAD  Component to Browse, Pick and Save the file in memory and then read the file
+MOD002 - SUPABASE INTEGRATION -   Bringing in portfolio rows to integrate with supabase
 
 
 

@@ -1,5 +1,6 @@
-//MOD001 - Defines the shape of Portfolio row
-
+/*
+MOD002 - SUPABASE INTEGRATION - Defines the shape of Portfolio row
+*/
 
 // Sets up the Supabase client using environment variables  so we can  talk to the database from anywhere in the app
 import { createClient } from '@supabase/supabase-js' 
@@ -21,4 +22,4 @@ export type PortfolioRow = {
   tazkiyah_amount?: number
 }
 
-//MOD001 End
+//MOD002 End
