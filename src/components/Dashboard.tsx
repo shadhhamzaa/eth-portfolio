@@ -1,6 +1,6 @@
 /*
 MOD006      Dashboard UI - Fetches portfolio holdings from Supabase, runs compliance checks on each stock, and displays a summary
- with per-stock compliance badges and tazkiyah totals.
+            with per-stock compliance badges and tazkiyah totals.
  */
 
 'use client'
@@ -157,8 +157,9 @@ export default function Dashboard() {
                     <th className="px-6 py-3 text-left font-medium text-gray-600">Current Price</th>
                     <th className="px-6 py-3 text-left font-medium text-gray-600">Value</th>
                     <th className="px-6 py-3 text-left font-medium text-gray-600">Status</th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-600">Reason</th>
                     <th className="px-6 py-3 text-left font-medium text-gray-600">P&L</th>
+                    <th className="px-6 py-3 text-left font-medium text-gray-600">Reason</th>
+                    
                 </tr>
             </thead>
             <tbody>

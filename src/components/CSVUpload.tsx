@@ -1,6 +1,7 @@
 /* User MODS
 MOD001 - FILE UPLOAD  Component to Browse, Pick and Save the file in memory and then read the file
 MOD002 - SUPABASE INTEGRATION -   Bringing in portfolio rows to integrate with supabase
+MOD010 - TRADING212 CSV CONSIDERATION - Upgrading for Trading212 CSVs.
 
 
 
@@ -43,24 +44,75 @@ export default function CSVUpload() {
       
       // MOD002   header mapping — normalises column names to lowercase so we can
       // handle different CSV formats (e.g. "Ticker" vs "ticker" vs "Symbol")
-      const headers = rows[0].map(h => h.trim().toLowerCase())
-      const dataRows = rows.slice(1).map(row => {
-        const obj: Record<string, string> = {}
-        headers.forEach((h, i) => { obj[h] = row[i]?.trim() || '' })
+      const headers = rows[0].map(h => h.trim().toLowerCase().replace(/"/g, '')) //they have "action, so replaced with blank aka removed
 
-        // MOD002   maps raw CSV columns to PortfolioRow shape, checks multiple
-        // possible column names to handle different broker CSV formats
-        return {
-          stock_ticker: obj['ticker'] || obj['symbol'] || '',
-          stock_name: obj['name'] || obj['company'] || '',
-          quantity: parseFloat(obj['quantity'] || obj['shares'] || '0'),
-          average_price: parseFloat(obj['average price'] || obj['avg price'] || obj['price'] || '0'),
-        } as PortfolioRow
-      }).filter(row => row.stock_ticker !== '') // ADDED: removes empty rows with no ticker
+      // ADDED: temporary debug log
+      console.log('Headers detected:', headers)
+      console.log('Is Trading 212:', headers.includes('action'))
+      console.log('First header raw:', JSON.stringify(headers[0]))
+      // MOD010: Trading 212 parser — detects if this is a T212 export by checking
+      // for 'action' column which is unique to Trading212 transaction history csv format 
+      const isTrading212 = headers.includes('action')
 
-      setParsed(dataRows)
+      if (isTrading212) {
+        // Group transactions by ticker
+        const holdingsMap: Record<string, { totalShares: number, totalCost: number, name: string }> = {}
+        rows.slice(1).forEach(row => {
+          const obj: Record<string, string> = {}
+          headers.forEach((h, i) => { obj[h] = row[i]?.trim().replace(/"/g, '') || '' })
+          const action = obj['action']?.toLowerCase()
+          const ticker = obj['ticker']
+          const name = obj['name']
+          const shares = parseFloat(obj['no. of shares'] || '0')
+          const price = parseFloat(obj['price / share'] || '0')
+          
+          // Only process buy and sell actions, skip deposits and other rows
+          if (!ticker || (!action.includes('buy') && !action.includes('sell'))) return
+
+          if (!holdingsMap[ticker]) {
+            holdingsMap[ticker] = { totalShares: 0, totalCost: 0, name }
+          }
+          
+          if (action.includes('buy')) {
+            // MOD010: accumulate shares and cost for average price calculation
+            holdingsMap[ticker].totalShares += shares
+            holdingsMap[ticker].totalCost += shares * price
+          } else if (action.includes('sell')) {
+            // MOD010: reduce shares on sell, adjust cost proportionally
+            const avgPrice = holdingsMap[ticker].totalCost / holdingsMap[ticker].totalShares
+            holdingsMap[ticker].totalShares -= shares
+            holdingsMap[ticker].totalCost -= shares * avgPrice
+          }
+        })
+        // MOD010: convert map to PortfolioRow array, filter out fully sold positions
+        const dataRows = Object.entries(holdingsMap)
+          .filter(([, h]) => h.totalShares > 0.0001)
+          .map(([ticker, h]) => ({
+            stock_ticker: ticker,
+            stock_name: h.name,
+            quantity: parseFloat(h.totalShares.toFixed(6)),
+            average_price: parseFloat((h.totalCost / h.totalShares).toFixed(2)),
+          } as PortfolioRow))
+
+        setParsed(dataRows)
+         } else {
+        // MOD010: fallback to generic parser for non Trading 212 CSVs
+
+        const dataRows = rows.slice(1).map(row => {
+          const obj: Record<string, string> = {}
+          headers.forEach((h, i) => { obj[h] = row[i]?.trim() || '' })
+          return {
+            stock_ticker: obj['ticker'] || obj['symbol'] || '',
+            stock_name: obj['name'] || obj['company'] || '',
+            quantity: parseFloat(obj['quantity'] || obj['shares'] || '0'),
+            average_price: parseFloat(obj['average price'] || obj['avg price'] || obj['price'] || '0'),
+          } as PortfolioRow
+        }).filter(row => row.stock_ticker !== '')
+
+        setParsed(dataRows)
+      }
     }
-    reader.readAsText(file)                                             // reads the formatted
+    reader.readAsText(file)
   }
 // MOD001 End
 
