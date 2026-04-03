@@ -15,6 +15,11 @@ export type FinancialData = {
   totalAssets: number
 }
 
+export type DividendData = {
+  ticker: string
+  annualDividendPerShare: number
+}
+
 export async function fetchFinancialData(ticker: string): Promise<FinancialData | null> {
   try {
     // Fetch company details — gives us name and sector
