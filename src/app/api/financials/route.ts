@@ -5,6 +5,7 @@ MOD004      Shariah compliance engine  - runs compliance check on fetched financ
 MOD005      Tazkiyah Calculator   - Server-side API route that returns financial data, compliance result and tazkiyah amount.
 MOD006      Dividend Calculator - Calculate dividend automatically using API data and derive Tazkiya from it
 MOD007      Portfolio value - Calculate total portfolio value and calculate P&L
+MOD009      Landing page upgrade. MOD008 is a Navbar UI change so not in route.  
 */
 
 import { NextRequest, NextResponse } from 'next/server'     

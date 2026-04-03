@@ -63,7 +63,6 @@ export async function fetchCurrentPrice(ticker: string): Promise<number> {
   }
 }
 
-
 // ADDED: fetches last 12 months of dividends and sums them up per share
 export async function fetchDividends(ticker: string): Promise<DividendData> {
   try {
