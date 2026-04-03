@@ -142,6 +142,6 @@ This app uses **AAOIFI (Accounting and Auditing Organization for Islamic Financi
 ## Author
 
 Built by [Shadh Hamza](https://github.com/shadhhamzaa) as part of a fintech portfolio project exploring Islamic finance and ethical investing.
-
+Live PROD URL hosted in vercel:  eth-portfolio.vercel.app
 
 -----
