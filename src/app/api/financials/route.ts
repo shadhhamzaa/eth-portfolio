@@ -4,7 +4,7 @@ MOD003      ALPHA_V API DATA -  Server-side API route that receives a ticker fro
 MOD004      Shariah compliance engine  - runs compliance check on fetched financial data and returns combined result
 MOD005      Tazkiyah Calculator   - Server-side API route that returns financial data, compliance result and tazkiyah amount.
 MOD006      Dividend Calculator - Calculate dividend automatically using API data and derive Tazkiya from it
-MOD007      Portfolio value - Calculate total portfolio value and 
+MOD007      Portfolio value - Calculate total portfolio value and calculate P&L
 */
 
 import { NextRequest, NextResponse } from 'next/server'     
