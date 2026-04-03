@@ -3,6 +3,7 @@ MOD003      ALPHA_V API DATA - Fetches financial data from Financial Modeling Pr
             Returns key figures needed for Shariah compliance checks — mainly income statement data.
  */
 const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY
+const POLYGON_API_KEY = process.env.POLYGON_API_KEY
 
 export type FinancialData = {
   ticker: string
@@ -16,26 +17,58 @@ export type FinancialData = {
 
 export async function fetchFinancialData(ticker: string): Promise<FinancialData | null> {
   try {
-    // Fetch company overview — contains sector, debt, revenue and more in one call
-    const res = await fetch(
-      `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
+    // Fetch company details — gives us name and sector
+    const detailsRes = await fetch(
+      `https://api.polygon.io/v3/reference/tickers/${ticker}?apiKey=${POLYGON_API_KEY}`
     )
-    const data = await res.json()
+    const detailsData = await detailsRes.json()
+    const details = detailsData.results
+    if (!details) return null
 
-    // If ticker not found or API limit hit, data will be empty
-    if (!data || !data.Symbol) return null
+    // Fetch financials — gives us revenue, debt, assets
+    const financialsRes = await fetch(
+      `https://api.polygon.io/vX/reference/financials?ticker=${ticker}&limit=1&apiKey=${POLYGON_API_KEY}`
+    )
+    const financialsData = await financialsRes.json()
+    const financials = financialsData.results?.[0]?.financials
+
+    const incomeStatement = financials?.income_statement
+    const balanceSheet = financials?.balance_sheet
 
     return {
-      ticker: data.Symbol,
-      companyName: data.Name,
-      sector: data.Sector,
-      totalRevenue: parseFloat(data.RevenueTTM) || 0,
-      interestIncome: 0, // Alpha Vantage overview doesn't break this out — handled in compliance engine
-      totalDebt: parseFloat(data.TotalDebt) || 0, // not always available on free tier
-      totalAssets: parseFloat(data.TotalAssets) || 0,
+      ticker,
+      companyName: details.name || ticker,
+      sector: details.sic_description || 'Unknown',
+      totalRevenue: incomeStatement?.revenues?.value || 0,
+      interestIncome: incomeStatement?.interest_expense?.value || 0,
+      totalDebt: balanceSheet?.long_term_debt?.value || 0,
+      totalAssets: balanceSheet?.assets?.value || 0,
     }
   } catch (error) {
     console.error(`Failed to fetch data for ${ticker}:`, error)
     return null
+  }
+}
+// ADDED: fetches last 12 months of dividends and sums them up per share
+export async function fetchDividends(ticker: string): Promise<DividendData> {
+  try {
+    const oneYearAgo = new Date()
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+    const fromDate = oneYearAgo.toISOString().split('T')[0]
+
+    const res = await fetch(
+      `https://api.polygon.io/v3/reference/dividends?ticker=${ticker}&ex_dividend_date.gte=${fromDate}&limit=10&apiKey=${POLYGON_API_KEY}`
+    )
+    const data = await res.json()
+
+    // Sum all dividend payments over the last year
+    const annualDividendPerShare = (data.results || []).reduce(
+      (sum: number, d: { cash_amount: number }) => sum + (d.cash_amount || 0), 0
+    )
+
+    return { ticker, annualDividendPerShare }
+  } catch (error) {
+    console.error(`Failed to fetch dividends for ${ticker}:`, error)
+    return { ticker, annualDividendPerShare: 0 }
   }
 }

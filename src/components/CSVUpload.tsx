@@ -21,11 +21,15 @@ export default function CSVUpload() {
 
   // MOD002     status state — tracks save progress to show feedback to the user
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  
+  // CSV creating duplicates from multiple uploads, so clearning database everytime a new upload goes in
+  const [clearStatus, setClearStatus] = useState<'idle' | 'clearing' | 'cleared'>('idle')  
 
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {    //runs when user selects a file
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {    //runs when user selects a file
     const selected = e.target.files?.[0]                                    //Get the file the user picked
-    if (!selected) return                                                   //If no file → stop
+    if (!selected) return
+     // Auto-clear the supabase DB just before a new file is uploaded to avoid duplicates 
+    await supabase.from('portfolios').delete().neq('id', '00000000-0000-0000-0000-000000000000')
     setFile(selected)                                                       //Save the file in memory
     parseCSV(selected)                                                      // read file
   }

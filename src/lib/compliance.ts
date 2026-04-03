@@ -24,7 +24,27 @@ const HARAM_SECTORS = [
   'insurance',
   'financials',
   'financial services',     // JP Morgan slipped out in testing as it had financial services, so adding that
-  'diversified financials'
+  'diversified financials',
+// ADDED: Polygon.io SIC descriptions for financial institutions
+  'national commercial banks',
+  'state commercial banks',
+  'savings institutions',
+  'credit unions',
+  'mortgage bankers',
+  'personal credit institutions',
+  'federal-sponsored credit agencies',
+  'security brokers',
+  'investment offices',
+  'fire, marine & casualty insurance',
+  'life insurance',
+  'accident and health insurance',
+  'surety insurance',
+  'insurance agents',
+  'distilled and blended liquors',
+  'malt beverages',
+  'wines, brandy and brandy spirits',
+  'services-miscellaneous amusement',
+  'services-racing',
 ]
 
 // Sectors that are generally considered halal
