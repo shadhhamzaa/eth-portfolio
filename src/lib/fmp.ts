@@ -49,6 +49,21 @@ export async function fetchFinancialData(ticker: string): Promise<FinancialData 
     return null
   }
 }
+
+// CHANGED: switched to previous close endpoint which is available on free tier
+export async function fetchCurrentPrice(ticker: string): Promise<number> {
+  try {
+    const res = await fetch(
+      `https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
+    )
+    const data = await res.json()
+    return data.results?.[0]?.c || 0  // c = closing price
+  } catch {
+    return 0
+  }
+}
+
+
 // ADDED: fetches last 12 months of dividends and sums them up per share
 export async function fetchDividends(ticker: string): Promise<DividendData> {
   try {

@@ -3,13 +3,15 @@ MOD003      ALPHA_V API DATA -  Server-side API route that receives a ticker fro
             Keeps the FMP API key secure on the server.
 MOD004      Shariah compliance engine  - runs compliance check on fetched financial data and returns combined result
 MOD005      Tazkiyah Calculator   - Server-side API route that returns financial data, compliance result and tazkiyah amount.
+MOD006      Dividend Calculator - Calculate dividend automatically using API data and derive Tazkiya from it
+MOD007      Portfolio value - Calculate total portfolio value and 
 */
 
-import { NextRequest, NextResponse } from 'next/server'
-import { fetchFinancialData, fetchDividends  } from '@/lib/fmp'         
+import { NextRequest, NextResponse } from 'next/server'     
 import { checkCompliance } from '@/lib/compliance'      //MOD004 Shariah compliance engine
 import { calculateTazkiyah } from '@/lib/tazkiyah'      //MOD005 Tazkiyah Calculator
 import { createClient } from '@supabase/supabase-js'
+import { fetchFinancialData, fetchDividends, fetchCurrentPrice } from '@/lib/fmp'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -46,6 +48,9 @@ export async function GET(request: NextRequest) {
         const dividendData = await fetchDividends(ticker)
         const dividendsReceived = dividendData.annualDividendPerShare * quantity
         const tazkiyah = calculateTazkiyah(ticker, dividendsReceived, cached.haram_income_percentage)
+        const currentPrice = await fetchCurrentPrice(ticker)
+        const currentValue = parseFloat((currentPrice * quantity).toFixed(2))
+
         return NextResponse.json({
             ticker: cached.ticker,
             companyName: cached.company_name,
@@ -57,6 +62,8 @@ export async function GET(request: NextRequest) {
             },
             dividendsReceived: parseFloat(dividendsReceived.toFixed(2)),
             tazkiyah,
+            currentPrice,
+            currentValue,
             fromCache: true,
         })
     }
@@ -68,12 +75,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Could not fetch data' }, { status: 404 })
   }
     
-  const compliance = checkCompliance(data)      // MOD004 run compliance check and attach result to response
+const compliance = checkCompliance(data)      // MOD004 run compliance check and attach result to response
    // ADDED: fetch dividends and calculate total received based on quantity held
-  const dividendData = await fetchDividends(ticker)
-  const dividendsReceived = dividendData.annualDividendPerShare * quantity
+const dividendData = await fetchDividends(ticker)
+const dividendsReceived = dividendData.annualDividendPerShare * quantity
   // MOD005: calculate tazkiyah using haram income % from compliance result
-  const tazkiyah = calculateTazkiyah(ticker, dividendsReceived, compliance.haramIncomePercentage) 
+const tazkiyah = calculateTazkiyah(ticker, dividendsReceived, compliance.haramIncomePercentage) 
+  // MOD007: fetch live price to calculate current portfolio value
+const currentPrice = await fetchCurrentPrice(ticker)
+const currentValue = currentPrice * quantity
 
   
     // Step 4 — save result to cache for next time
@@ -89,6 +99,8 @@ export async function GET(request: NextRequest) {
     haram_income_percentage: compliance.haramIncomePercentage,
     reason: compliance.reason,
     fetched_at: new Date().toISOString(),
+    currentPrice,
+    currentValue: parseFloat(currentValue.toFixed(2)),
   }, { onConflict: 'ticker' })
 
    return NextResponse.json({ ...data, compliance, dividendsReceived, tazkiyah, fromCache: false })
