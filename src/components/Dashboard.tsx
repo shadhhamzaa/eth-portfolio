@@ -49,8 +49,8 @@ export default function Dashboard() {
     if (error || !data) return setLoading(false)
 
     // Step 2 — set holdings with loading status while we fetch compliance
-    const initial: StockWithCompliance[] = data.map(row => ({
-      ...row,
+    const initial: StockWithCompliance[] = data.map((row: PortfolioRow) => ({
+  ...row,
       complianceStatus: 'loading',
       reason: '',
       tazkiyahAmount: 0,
