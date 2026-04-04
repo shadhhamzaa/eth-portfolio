@@ -15,7 +15,7 @@ Muslim retail investors have no simple way to verify whether their stock portfol
 - Calculate Tazkiyah approximately and add a buffer. 
 
 
-Eth Portfolio automates this entirely — upload your broker export, get a compliance verdict and tazkiyah amount in minutes.
+Eth Portfolio automates the whole process - upload your broker export, get a compliance verdict and tazkiyah amount in minutes.
 
 ---
 
@@ -131,7 +131,7 @@ Most brokers (Trading 212, Freetrade, eToro) support CSV export in one click. Ma
 - [ ] UK/LSE stock support
 - [ ] Zakat calculator
 - [ ] Multi-currency support
-- [ ] Direct broker API integration (replacing CSV upload)
+- [ ] Direct broker API integration - currently Trading 212 dont provide an API .(replacing CSV upload)
 - [ ] Email alerts when a stock's compliance status changes
 - [ ] Move compliance rules to database so they can be updated without code changes
 
