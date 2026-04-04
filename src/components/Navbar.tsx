@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'                 //useRouter MOD011   -   Supabase Auth    
 import { useEffect, useState } from 'react'                             //MOD011   -   Supabase Auth 
 import { createSupabaseBrowser } from '@/lib/supabase-browser'          //MOD011   -   Supabase Auth 
+import type { Session } from '@supabase/supabase-js'
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -27,9 +28,16 @@ export default function Navbar() {
     getUser()
 
     // ADDED: listen for auth changes so navbar updates instantly on login/logout
+    /*
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserEmail(session?.user?.email || null)
     })
+    */
+    // CHANGED: added explicit type to _event parameter to fix TypeScript error
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
+  setUserEmail(session?.user?.email || null)
+  })
+
 
     return () => subscription.unsubscribe()
   }, [])
