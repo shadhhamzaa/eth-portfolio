@@ -1,18 +1,77 @@
-# Eth Portfolio 
+# Eth Portfolio — Shariah-Compliant Investment Screening Tool
 
-A Shariah-compliant stock portfolio dashboard for Muslim/Ethical investors. Upload your holdings, check compliance against AAOIFI standards, and calculate your tazkiyah (purification) automatically.
+Automates AAOIFI-standard compliance checks and tazkiyah calculation for Muslim retail investors. Built to replace manual spreadsheet screening with a real-time, data-driven dashboard.
+
+**Live Demo:** [eth-portfolio.vercel.app](https://eth-portfolio.vercel.app)
+
+---
+
+## The Problem
+
+Muslim retail investors have no simple way to verify whether their stock portfolio is Shariah-compliant. Even when stocks are screened and filtered, calculation of Tazkiyah amount is still almost impossible. The current options are,
+- Manual spreadsheet screening (slow, error-prone)
+- Paid Islamic finance screeners (£10–£50/month)
+- Asking a scholar for every stock (not  practical and scalable)
+- Calculate Tazkiyah approximately and add a buffer. 
+
+
+Eth Portfolio automates this entirely — upload your broker export, get a compliance verdict and tazkiyah amount in minutes.
+
+---
+
+## The Integration Challenge
+
+This project connects four external systems into a single coherent pipeline,
+
+Trading 212 CSV Export
+↓
+CSV Parser (auto-detects broker format)
+↓
+Supabase (PostgreSQL) — stores holdings per user
+↓
+Polygon.io API — fetches sector, revenue, debt data
+↓
+Compliance Engine (AAOIFI rules)
+↓
+Tazkiyah Calculator
+↓
+Real-time Dashboard
+
+---
+
+**Key integration problems solved:**
+- API rate limiting handled via a 30-day compliance cache in Supabase
+- Inconsistent sector naming across data providers normalised in the compliance engine
+- Different broker CSV formats handled via auto-detection and flexible column mapping
+- Trading 212 exports transaction history not holdings — built a parser that reconstructs current positions from buy/sell history
 
 ---
 
 ## Features
 
--  **CSV Upload** — Import holdings from Trading 212 or any broker
--  **Shariah Compliance Engine** — Screens every stock by sector and financial ratios (AAOIFI standards)
--  **Tazkiyah Calculator** — Auto-calculates purification amount from real dividend data
--  **Live Portfolio Tracking** — Current prices, portfolio value, and P&L
--  **Smart Caching** — Compliance results cached in Supabase to minimise API calls
+-  **CSV Upload** — Auto-detects Trading 212 transaction format, reconstructs current holdings from buy/sell history
+-  **Shariah Compliance Engine** — Screens every stock by sector and financial ratios against AAOIFI standards
+-  **Tazkiyah Calculator** — Auto-calculates purification amount from real dividend data via Polygon.io
+-  **Live Portfolio Tracking** — Previous-close prices, total portfolio value, and P&L per holding
+-  **Smart Caching** — Compliance results cached in Supabase for 30 days, reducing API calls by 90%+ on repeat loads
+-  **User Authentication** — Supabase Auth with email/password, each user sees only their own portfolio
 
 ---
+## Shariah Screening stanadards 
+
+Uses AAOIFI (Accounting and Auditing Organization for Islamic Financial Institutions) standards — the most widely recognised standard in UK Islamic finance:
+
+| Screen | Threshold | Result |
+|---|---|---|
+| Sector (banking, alcohol, gambling etc.) | Any exposure |  Haram |
+| Debt / Total Assets | > 33% |  Haram |
+| Interest Income / Revenue | > 5% |  Haram |
+| Approaching thresholds | 25–33% debt or 3–5% interest |  Doubtful |
+| Passes all screens | Under all thresholds |  Halal |
+
+---
+
+
 
 ## How It Works
 
@@ -29,119 +88,69 @@ A Shariah-compliant stock portfolio dashboard for Muslim/Ethical investors. Uplo
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 15 (App Router) |
-| Language | TypeScript |
-| Styling | Tailwind CSS |
-| Database | Supabase (PostgreSQL) |
-| Financial Data | Polygon.io API |
-| Hosting | Vercel |
+| Layer | Technology | Why |
+|---|---|---|
+| Framework | Next.js 15 (App Router) | Server and client in one codebase, API routes keep credentials secure |
+| Language | TypeScript | Type safety across the data pipeline |
+| Styling | Tailwind CSS | Rapid UI development |
+| Database | Supabase (PostgreSQL) | Relational structure needed for compliance caching and user data |
+| Financial Data | Polygon.io API | Unlimited daily requests on free tier |
+| Auth | Supabase Auth | Built-in, integrates directly with RLS policies |
+| Hosting | Vercel | Native Next.js support, auto-deploys from GitHub |
 
 ---
 
-## Getting Started
+## Key Technical Decisions
 
-### Prerequisites
-- Node.js 18+
-- Supabase account
-- Polygon.io API key (free tier)
+**Supabase over Firebase**
+Needed relational structure for compliance caching. SQL query flexibility and row-level security policies made Supabase the stronger choice over Firebase's document model.
 
-### Installation
-```bash
-git clone https://github.com/shadhhamzaa/eth-portfolio.git
-cd eth-portfolio
-npm install
-```
+**Polygon.io over Alpha Vantage**
+Alpha Vantage's free tier caps at 25 requests per day — unusable for any real portfolio. Polygon.io offers unlimited daily requests with a per-minute rate limit instead, which is solvable via caching.
 
-### Environment Variables
+**Compliance caching in PostgreSQL**
+Polygon.io's free tier allows 5 requests per minute. Caching compliance results per ticker for 30 days reduces API calls by over 90% on repeat dashboard loads, making the app usable without a paid API plan.
 
-Create a `.env.local` file in the root:
+**AAOIFI over MSCI/Dow Jones Islamic**
+AAOIFI is the most widely recognised Shariah standard in UK Islamic finance, making it the most defensible and relevant choice for a UK retail investor user base.
 
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-POLYGON_API_KEY=your_polygon_api_key
-
-
-### Database Setup
-
-Run these SQL queries in your Supabase SQL editor:
-```sql
-create table portfolios (
-  id uuid default gen_random_uuid() primary key,
-  created_at timestamp with time zone default timezone('utc', now()),
-  user_id text,
-  stock_ticker text not null,
-  stock_name text,
-  quantity numeric not null,
-  average_price numeric,
-  compliance_status text check (compliance_status in ('halal', 'doubtful', 'haram')),
-  haram_income_percentage numeric,
-  tazkiyah_amount numeric
-);
-
-create table compliance_cache (
-  id uuid default gen_random_uuid() primary key,
-  ticker text unique not null,
-  company_name text,
-  sector text,
-  total_revenue numeric,
-  interest_income numeric,
-  total_debt numeric,
-  total_assets numeric,
-  compliance_status text check (compliance_status in ('halal', 'doubtful', 'haram')),
-  haram_income_percentage numeric,
-  reason text,
-  fetched_at timestamp with time zone default timezone('utc', now())
-);
-```
-
-### Run Locally
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000)
+**CSV upload over manual entry**
+Most brokers (Trading 212, Freetrade, eToro) support CSV export in one click. Manual entry would be slow and error-prone for portfolios with 20+ holdings. The parser auto-detects the broker format and handles column name variations automatically.
 
 ---
 
-## CSV Format
+## Limitations & What I'd Do Next
 
-Your CSV should include these columns (column names are flexible):
+**Current limitations:**
+- Polygon.io free tier limits data freshness — a production version would need a paid plan. 
+- US-listed stocks only — UK/LSE ticker support is the most important next addition
+- Compliance engine relies on sector classifications from Polygon.io's and that can be wrong.
 
-Ticker, Name, Quantity, Average Price
-AAPL, Apple Inc, 10, 145.23
-TSLA, Tesla Inc, 5, 220.50
 
----
-
----
-
-## Shariah Screening Standards
-
-This app uses **AAOIFI (Accounting and Auditing Organization for Islamic Financial Institutions)** standards:
-
--  Haram sectors: banking, insurance, alcohol, tobacco, gambling, weapons, adult entertainment
--  Debt ratio exceeds 33% of total assets
--  Interest income exceeds 5% of total revenue
--  Doubtful: ratios within limits but approaching thresholds
--  Halal: passes all screens
-
----
-
-## Roadmap
-
-- [ ] User authentication
-- [ ] Multi-currency support
-- [ ] UK stock support (LSE tickers)
-- [ ] Email alerts for compliance changes
+**Roadmap:**
+- [ ] UK/LSE stock support
 - [ ] Zakat calculator
+- [ ] Multi-currency support
+- [ ] Direct broker API integration (replacing CSV upload)
+- [ ] Email alerts when a stock's compliance status changes
+- [ ] Move compliance rules to database so they can be updated without code changes
+
+---
+## Database Schema
+
+Full schema available in [docs/schema.sql](docs/schema.sql)
 
 ---
 
 ## Author
 
-Built by [Shadh Hamza](https://github.com/shadhhamzaa) as part of a fintech portfolio project exploring Islamic finance and ethical investing.
-Live PROD URL hosted in vercel:  eth-portfolio.vercel.app
+Built by [Shadh Hamza](https://github.com/shadhhamzaa)
 
------
+Integration and solutions engineering portfolio project : connecting broker data, financial APIs, and Islamic finance compliance standards.
+Live PROD hosted in vercel - https://eth-portfolio.vercel.app
+
+[GitHub](https://github.com/shadhhamzaa) 
+
+
+
+----
