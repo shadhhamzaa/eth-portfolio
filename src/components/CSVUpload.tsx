@@ -2,30 +2,44 @@
 MOD001 - FILE UPLOAD  Component to Browse, Pick and Save the file in memory and then read the file
 MOD002 - SUPABASE INTEGRATION -   Bringing in portfolio rows to integrate with supabase
 MOD010 - TRADING212 CSV CONSIDERATION - Upgrading for Trading212 CSVs.
+MOD011 - SUPABASE AUTH 
 
 
-
+// ADDED: get supabase browser client to fetch current user
+const supabase = createSupabaseBrowser()
 */ 
 'use client'                                                                 //Run this code in the browser and not on the server
 
 import { useState } from 'react'
-import { supabase, PortfolioRow } from '@/lib/supabase'
+//import { supabase, PortfolioRow } from '@/lib/supabase'
+import { createSupabaseBrowser } from '@/lib/supabase-browser'            //MOD011 - SUPABASE AUTH 
+import type { PortfolioRow } from '@/lib/supabase'
+
+
 
 //MOD001 Start
 export default function CSVUpload() { 
+  
+  const supabase = createSupabaseBrowser()
+  /*
   const [file, setFile] = useState<File | null>(null)                       //The file here stores uploaded file   Use state - Data
   const [preview, setPreview] = useState<string[][]>([])                    //The preview here stores data inside file (stock csv)
+  */
 
+  // MOD011 - SUPABASE AUTH  Changing the code as now Auth is in place. 
+  const [preview, setPreview] = useState<string[][]>([])              
+  const [parsed, setParsed] = useState<PortfolioRow[]>([])
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
     // MOD002    parsed state — stores cleaned portfolio rows ready to send to Supabase
-  const [parsed, setParsed] = useState<PortfolioRow[]>([])
+  //const [parsed, setParsed] = useState<PortfolioRow[]>([])
 
   // MOD002     status state — tracks save progress to show feedback to the user
-  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  //const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   
   // CSV creating duplicates from multiple uploads, so clearning database everytime a new upload goes in
   const [clearStatus, setClearStatus] = useState<'idle' | 'clearing' | 'cleared'>('idle')  
-
+/*
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {    //runs when user selects a file
     const selected = e.target.files?.[0]                                    //Get the file the user picked
     if (!selected) return
@@ -34,7 +48,20 @@ export default function CSVUpload() {
     setFile(selected)                                                       //Save the file in memory
     parseCSV(selected)                                                      // read file
   }
+*/
 
+// MOD011 : only delete current user's rows, not everyone's
+const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const selected = e.target.files?.[0]
+  if (!selected) return
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    await supabase.from('portfolios').delete().eq('user_id', user.id)
+  }
+
+  parseCSV(selected)
+}
   const parseCSV = (file: File) => {
     const reader = new FileReader()                                     //built-in browser tool: Open and read file
     reader.onload = (e) => {                                            //runs after file is read
@@ -121,15 +148,27 @@ export default function CSVUpload() {
     if (parsed.length === 0) return
     setStatus('saving')
 
-    const { error } = await supabase.from('portfolios').insert(parsed)
-
-    if (error) {
-      console.error(error)
-      setStatus('error')
-    } else {
-      setStatus('saved')
-    }
+  // Get current logged in user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    setStatus('error')
+    return
   }
+    // Attach user_id to every row
+  const rowsWithUser = parsed.map(row => ({
+    ...row,
+    user_id: user.id,
+  }))
+
+
+  const { error } = await supabase.from('portfolios').insert(rowsWithUser)
+  if (error) {
+    console.error(error)
+    setStatus('error')
+  } else {
+    setStatus('saved')
+  }
+}
 
   return (
     <div className="mt-8">

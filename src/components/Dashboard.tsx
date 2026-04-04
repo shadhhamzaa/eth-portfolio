@@ -6,7 +6,8 @@ MOD006      Dashboard UI - Fetches portfolio holdings from Supabase, runs compli
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase, PortfolioRow } from '@/lib/supabase'
+import { createSupabaseBrowser } from '@/lib/supabase-browser'
+import type { PortfolioRow } from '@/lib/supabase'
 
 type StockWithCompliance = PortfolioRow & {
   complianceStatus: 'halal' | 'doubtful' | 'haram' | 'loading' | 'error'
@@ -27,6 +28,7 @@ const statusStyles = {
 }
 
 export default function Dashboard() {
+  const supabase = createSupabaseBrowser()
   const [holdings, setHoldings] = useState<StockWithCompliance[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -35,8 +37,15 @@ export default function Dashboard() {
   }, [])
 
   const loadHoldings = async () => {
-    // Step 1 — fetch all rows from Supabase portfolios table
-    const { data, error } = await supabase.from('portfolios').select('*')
+    // ADDED: get current user and filter holdings by their user_id
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return setLoading(false)
+
+    const { data, error } = await supabase
+      .from('portfolios')
+      .select('*')
+      .eq('user_id', user.id)
+
     if (error || !data) return setLoading(false)
 
     // Step 2 — set holdings with loading status while we fetch compliance
